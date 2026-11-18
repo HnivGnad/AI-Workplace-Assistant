@@ -1,13 +1,11 @@
 from collections.abc import Generator
-from functools import lru_cache
 from pathlib import Path
 
+from fastapi import Request
 from sqlalchemy import Engine, create_engine
 from sqlalchemy.engine import make_url
 from sqlalchemy.orm import Session, sessionmaker
 from sqlalchemy.pool import StaticPool
-
-from app.core.config import Settings
 
 
 def build_engine(database_url: str) -> Engine:
@@ -22,17 +20,8 @@ def build_engine(database_url: str) -> Engine:
     return create_engine(url, **options)
 
 
-@lru_cache
-def get_engine() -> Engine:
-    return build_engine(Settings().database_url)
-
-
-@lru_cache
-def get_session_factory() -> sessionmaker[Session]:
-    return sessionmaker(bind=get_engine(), expire_on_commit=False)
-
-
-def get_db() -> Generator[Session, None, None]:
+def get_db(request: Request) -> Generator[Session, None, None]:
     """Caller owns commit; errors and unfinished transactions roll back on close."""
-    with get_session_factory()() as session:
+    factory: sessionmaker[Session] = request.app.state.session_factory
+    with factory() as session:
         yield session

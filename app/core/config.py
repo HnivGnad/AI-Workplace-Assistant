@@ -14,6 +14,7 @@ class Settings(BaseSettings):
     debug: bool = False
     api_host: str = Field(default="127.0.0.1", min_length=1)
     api_port: int = Field(default=8000, ge=1, le=65535)
+    cors_origins: list[str] = ["http://localhost:5173", "http://127.0.0.1:5173"]
     llm_api_key: SecretStr = SecretStr("")
     llm_base_url: str = ""
     llm_model: str = ""

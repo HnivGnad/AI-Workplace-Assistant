@@ -6,7 +6,10 @@ from pydantic import BaseModel, ConfigDict, StringConstraints, model_validator
 from app.db.models import TaskPriority, TaskStatus
 
 Title = Annotated[
-    str, StringConstraints(strip_whitespace=True, min_length=1, max_length=255)
+    str,
+    StringConstraints(
+        strip_whitespace=True, min_length=1, max_length=255, pattern=r"^[^\x00]*$"
+    ),
 ]
 
 

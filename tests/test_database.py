@@ -1,4 +1,5 @@
 from datetime import UTC, datetime
+from types import SimpleNamespace
 from uuid import UUID
 
 import pytest
@@ -6,6 +7,7 @@ from pydantic import ValidationError
 from sqlalchemy import inspect, select, text
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session, sessionmaker
+from starlette.requests import Request
 
 from app.db import database
 from app.db.init_db import init_db
@@ -122,7 +124,7 @@ def test_schema_and_repeat_initialization(engine):
         session.rollback()
 
 
-def test_dependency_closes_and_rolls_back(engine, monkeypatch):
+def test_dependency_closes_and_rolls_back(engine):
     class TrackedSession(Session):
         closed = False
 
@@ -131,8 +133,13 @@ def test_dependency_closes_and_rolls_back(engine, monkeypatch):
             super().close()
 
     factory = sessionmaker(engine, class_=TrackedSession)
-    monkeypatch.setattr(database, "get_session_factory", lambda: factory)
-    dependency = database.get_db()
+    request = Request(
+        {
+            "type": "http",
+            "app": SimpleNamespace(state=SimpleNamespace(session_factory=factory)),
+        }
+    )
+    dependency = database.get_db(request)
     session = next(dependency)
     session.add(Task(title="Uncommitted"))
     session.flush()
