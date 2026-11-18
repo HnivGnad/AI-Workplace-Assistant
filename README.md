@@ -7,11 +7,13 @@ Dự án portfolio hướng đến trợ lý quản lý công việc và hỏi �
 endpoint `/health`, Swagger UI, kiểm thử pytest và kiểm tra mã bằng Ruff.
 **Task 1.3–1.4:** SQLAlchemy đồng bộ, SQLite, models Task/Document, schemas
 Pydantic và lệnh khởi tạo database đã được triển khai.
+**Task 1.5–1.6:** API tạo, liệt kê, lọc, phân trang và cập nhật công việc,
+CORS cho frontend local và integration tests đã được triển khai.
 
 ## Chức năng dự kiến
 
 Chưa triển khai: tải tài liệu, tìm kiếm và hỏi đáp bằng RAG, trích xuất công việc,
-xem xét/xác nhận đề xuất, quản lý công việc, AI Agent và đánh giá chất lượng AI.
+xem xét/xác nhận đề xuất AI, AI Agent và đánh giá chất lượng AI.
 Chưa có lời gọi LLM, Docker hoặc frontend ở giai đoạn này.
 
 ## Công nghệ
@@ -35,13 +37,13 @@ Task 1.3–1.4 chọn SQLite theo yêu cầu; FAISS vẫn chưa được triển
 │   ├── __init__.py
 │   ├── main.py
 │   ├── core/          # Settings
-│   ├── api/           # Chưa có API nghiệp vụ
+│   ├── api/           # Task router
 │   ├── agent/
 │   ├── rag/
-│   ├── services/
+│   ├── services/      # TaskService: truy vấn và giao dịch
 │   ├── db/
 │   └── schemas/
-├── tests/             # Health, Swagger và cấu hình
+├── tests/             # Database, cấu hình, health và integration API
 ├── evals/
 │   ├── datasets/
 │   └── reports/
@@ -81,6 +83,7 @@ Không cần `.env` hoặc API key để chạy ứng dụng. Không đưa `.env
 | `API_HOST`, `API_PORT` | Địa chỉ và cổng cho `python -m app.main`; mặc định `127.0.0.1:8000` |
 | `LLM_API_KEY`, `LLM_BASE_URL`, `LLM_MODEL` | Dành cho bước sau; hiện để trống, không sử dụng |
 | `DATABASE_URL` | SQLite URL; mặc định `sqlite:///./data/app.db` |
+| `CORS_ORIGINS` | Mảng JSON các origin frontend được phép; mặc định localhost:5173 và 127.0.0.1:5173 (http) |
 | `LOG_LEVEL` | `CRITICAL`, `ERROR`, `WARNING`, `INFO`, `DEBUG` hoặc `TRACE` |
 
 Settings đọc biến môi trường trước `.env`, sau đó mới dùng giá trị mặc định.
@@ -117,7 +120,10 @@ Phương án pip dùng khoảng phiên bản trong `pyproject.toml`, không đ�
 
 ## Chạy ứng dụng
 
+Khởi tạo các bảng trước lần đầu sử dụng API task:
+
 ```shell
+uv run python -m app.db.init_db
 uv run python -m app.main
 ```
 
@@ -149,6 +155,24 @@ Swagger UI sử dụng tài nguyên CDN mặc định của FastAPI; trình duy�
 Internet để tải giao diện. Health và OpenAPI không cần dịch vụ bên ngoài.
 Chi tiết hợp đồng API tại [docs/api.md](docs/api.md).
 
+## API quản lý công việc
+
+| Method | Endpoint | Kết quả |
+|---|---|---|
+| POST | `/tasks` | 201, task vừa tạo |
+| GET | `/tasks` | 200, mảng task; hỗ trợ status, priority, limit, offset |
+| PATCH | `/tasks/{id}` | 200, task đã cập nhật; 404 nếu không tồn tại |
+
+Mở Swagger để thử: tạo task với `{"title":"Review report"}`, gọi GET,
+rồi PATCH ID vừa nhận với `{"status":"completed"}`.
+PATCH `{}` giữ nguyên dữ liệu; null chỉ dùng để xóa description/due_date.
+Title không nhận ký tự NUL; offset nằm trong khoảng 0–9223372036854775807.
+Validation trả 422; lỗi server trả 500 với thông báo chung.
+
+Hợp đồng đầy đủ và ví dụ cho React tại [docs/api-contract.md](docs/api-contract.md).
+Origins frontend được cấu hình bằng CORS_ORIGINS trong `.env.example`;
+không cần credentials. Chưa có DELETE hoặc API tài liệu/AI.
+
 ## Chạy kiểm thử
 
 ```shell
@@ -157,7 +181,8 @@ uv run pytest
 
 Kiểm thử dùng TestClient, không cần API key hoặc dịch vụ ngoài.
 
-Đã kiểm chứng trên Windows với Python 3.14.8: 29 kiểm thử đạt; `/health`, `/docs`
+Đã kiểm chứng trên Windows với Python 3.14.8: 64 kiểm thử đạt (35 integration tests);
+`/health`, `/docs`
 và `/openapi.json` trả HTTP 200 khi chạy server thực tế. Các phiên bản Python
 khác trong phạm vi khai báo 3.11+ chưa được chạy kiểm thử trên máy này.
 Phiên bản Starlette trong lockfile phát cảnh báo ngừng hỗ trợ HTTPX trong
@@ -178,7 +203,8 @@ Ruff kiểm tra quy ước, import, lỗi phổ biến và cú pháp tương th�
 ## Lộ trình phát triển
 
 1. **Task 1.1:** nền tảng ứng dụng, cấu hình, health và công cụ phát triển.
-2. **Task 1.3–1.4:** models, schemas và SQLite đã có; API nghiệp vụ chưa có.
+2. **Task 1.3–1.4:** models, schemas và SQLite đã có.
+   **Task 1.5–1.6:** API tạo/liệt kê/cập nhật task và integration tests đã có.
 3. Xử lý tài liệu, tìm kiếm và hỏi đáp RAG có nguồn tham chiếu.
 4. Trích xuất công việc, xem xét/xác nhận và quản lý công việc.
 5. Đánh giá AI, giao diện, Docker và hoàn thiện demo portfolio.
@@ -201,6 +227,10 @@ database. Đường dẫn tương đối được tính từ thư mục chạy l
 `create_all()` không cập nhật cấu trúc bảng đã tồn tại. Theo phạm vi nhiệm vụ,
 chưa dùng Alembic; khi thay đổi schema đã có dữ liệu cần bổ sung migration.
 
-`get_db()` cấp session cho API tương lai và luôn đóng session; bên gọi chủ động
+`get_db()` cấp session cho API task và luôn đóng session; service chủ động
 `commit()`. Giao dịch chưa commit được rollback khi đóng. Tests dùng SQLite tạm,
 không sử dụng database development. Xem [thiết kế database](docs/architecture.md).
+
+Mỗi app dùng engine/session factory riêng từ Settings truyền vào create_app,
+được tạo trong lifespan và dispose khi app dừng. Import không tạo database;
+startup có thể tạo thư mục cha nhưng chưa mở kết nối hay tạo bảng.

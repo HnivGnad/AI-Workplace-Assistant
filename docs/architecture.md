@@ -1,7 +1,11 @@
 # Tầng database — Task 1.3–1.4
 
-SQLite với SQLAlchemy 2.x đồng bộ; engine và session factory được tạo khi gọi,
-không kết nối hay tạo schema khi import. URL lấy từ Settings.
+SQLite với SQLAlchemy 2.x đồng bộ; mỗi app tạo engine/session factory trong
+lifespan từ Settings truyền vào create_app. get_db lấy factory từ request.app.state,
+không dùng cache engine toàn cục. Khi app dừng, engine được dispose và factory được gỡ.
+Import không kết nối hay tạo schema. Startup có thể tạo thư mục cha;
+kết nối database mở khi dùng session. Lệnh init_db quản lý và dispose engine riêng;
+engine do bên gọi truyền vào vẫn do bên gọi quản lý.
 Chỉ hỗ trợ SQLite trong giai đoạn này. SQLite in-memory dùng StaticPool để
 các session trong cùng engine thấy chung database.
 
@@ -47,10 +51,27 @@ Document chỉ lưu metadata. `id` là định danh ổn định để vector ch
   `from_attributes=True`. DocumentCreate chỉ nhận filename và file_type;
   trạng thái và chunk_count do xử lý nội bộ quản lý ở giai đoạn sau.
 - Title/filename/file_type được trim và kiểm tra độ dài bằng Pydantic.
+  Title còn từ chối NUL để tránh khác biệt cách tính độ dài với SQLite.
 
 ## Khởi tạo và thay đổi schema
 
 `python -m app.db.init_db` gọi create_all, chỉ tạo bảng còn thiếu, không xóa dữ liệu.
 Theo Task 1.3–1.4, chưa thêm Alembic (ngoại lệ so với hướng dẫn migration chung).
 create_all không nâng cấp bảng cũ; phải bổ sung migration trước thay đổi schema
-có dữ liệu. Chưa có API nghiệp vụ, service, RAG hay upload.
+có dữ liệu. Chưa có RAG hay upload.
+
+## API quản lý công việc — Task 1.5–1.6
+
+Router `app/api/tasks.py` nhận request đã được Pydantic kiểm tra, gọi các hàm
+trong `app/services/task_service.py` và trả TaskResponse. Theo phạm vi nhiệm vụ,
+service dùng SQLAlchemy trực tiếp, chưa cần repository riêng.
+
+Mỗi request dùng một session từ get_db. Service create/update commit rồi refresh;
+khi có SQLAlchemyError sẽ rollback và ném lỗi lên lớp HTTP. List thực hiện lọc,
+sắp xếp và limit/offset ngay trong SQL. PATCH rỗng trả bản ghi hiện có mà không ghi.
+
+Middleware chuyển lỗi chưa xử lý thành HTTP 500 với thông báo chung, kể cả khi
+debug bật; log chỉ ghi tên lớp lỗi, không ghi SQL, payload hoặc connection string.
+CORS nằm ngoài middleware lỗi để frontend được đọc cả phản hồi lỗi.
+Origins lấy từ CORS_ORIGINS; không dùng credentials. Kiểm thử tích hợp override
+get_db bằng session trên SQLite tạm, có lỗi ghi thực tế bằng trigger để kiểm tra rollback.
