@@ -320,6 +320,7 @@ Khi yêu cầu chưa rõ: kiểm tra quy ước hiện có của repository, ch�
 ## 12. Quy ước commit và push
 
 - Khi người dùng yêu cầu push, tạo commit với nội dung ngắn gọn, mô tả rõ thay đổi.
+- Tiêu đề commit phải nêu thành phần hoặc hành vi cụ thể đã thay đổi; tránh chỉ ghi tên nhiệm vụ hoặc mô tả chung như "initialize project foundation".
 - Gộp các file liên quan vào cùng commit theo chức năng hoặc nhiệm vụ; chỉ tách commit theo file khi thay đổi độc lập.
 - Kiểm tra nội dung được stage, không commit thông tin bí mật hoặc dữ liệu người dùng.
 - Quy ước này áp dụng cho những lần yêu cầu push tiếp theo trong repository.
