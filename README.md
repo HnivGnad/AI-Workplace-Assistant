@@ -5,24 +5,26 @@
 Dự án portfolio hướng đến trợ lý quản lý công việc và hỏi đáp tài liệu bằng AI.
 **Đã triển khai trong Task 1.1:** bộ khung FastAPI, cấu hình môi trường,
 endpoint `/health`, Swagger UI, kiểm thử pytest và kiểm tra mã bằng Ruff.
+**Task 1.3–1.4:** SQLAlchemy đồng bộ, SQLite, models Task/Document, schemas
+Pydantic và lệnh khởi tạo database đã được triển khai.
 
 ## Chức năng dự kiến
 
 Chưa triển khai: tải tài liệu, tìm kiếm và hỏi đáp bằng RAG, trích xuất công việc,
 xem xét/xác nhận đề xuất, quản lý công việc, AI Agent và đánh giá chất lượng AI.
-Không có lời gọi LLM, kết nối database, Docker hoặc frontend ở giai đoạn này.
+Chưa có lời gọi LLM, Docker hoặc frontend ở giai đoạn này.
 
 ## Công nghệ
 
 - Python 3.11+, FastAPI, Uvicorn, Pydantic và Pydantic Settings.
 - Quản lý dependencies: `uv`; hỗ trợ phương án `venv` và `pip`.
 - Phát triển: pytest, HTTPX (cho TestClient) và Ruff.
-- Dự kiến cho các bước sau: LangGraph, API tương thích OpenAI, FAISS,
-  SQLite và SQLAlchemy. Các thư viện này **chưa được cài đặt**.
+- Lưu trữ: SQLite và SQLAlchemy 2.x đồng bộ.
+- Dự kiến cho các bước sau: LangGraph, API tương thích OpenAI và FAISS.
 
 Task 1.1 sử dụng cấu trúc `app/` tại thư mục gốc và `/health` theo yêu cầu riêng,
 khác với cấu trúc `backend/` và `/api/health` trong đề xuất AGENTS.md.
-SQLite/FAISS cũng chỉ là định hướng mới; chưa có quyết định triển khai lưu trữ.
+Task 1.3–1.4 chọn SQLite theo yêu cầu; FAISS vẫn chưa được triển khai.
 
 ## Cấu trúc dự án
 
@@ -78,7 +80,7 @@ Không cần `.env` hoặc API key để chạy ứng dụng. Không đưa `.env
 | `DEBUG` | Bật chế độ debug; mặc định `false`, tệp mẫu là `true` |
 | `API_HOST`, `API_PORT` | Địa chỉ và cổng cho `python -m app.main`; mặc định `127.0.0.1:8000` |
 | `LLM_API_KEY`, `LLM_BASE_URL`, `LLM_MODEL` | Dành cho bước sau; hiện để trống, không sử dụng |
-| `DATABASE_URL` | Dành cho bước sau; chưa mở kết nối hoặc tạo database |
+| `DATABASE_URL` | SQLite URL; mặc định `sqlite:///./data/app.db` |
 | `LOG_LEVEL` | `CRITICAL`, `ERROR`, `WARNING`, `INFO`, `DEBUG` hoặc `TRACE` |
 
 Settings đọc biến môi trường trước `.env`, sau đó mới dùng giá trị mặc định.
@@ -155,7 +157,7 @@ uv run pytest
 
 Kiểm thử dùng TestClient, không cần API key hoặc dịch vụ ngoài.
 
-Đã kiểm chứng trên Windows với Python 3.14.8: 7 kiểm thử đạt; `/health`, `/docs`
+Đã kiểm chứng trên Windows với Python 3.14.8: 29 kiểm thử đạt; `/health`, `/docs`
 và `/openapi.json` trả HTTP 200 khi chạy server thực tế. Các phiên bản Python
 khác trong phạm vi khai báo 3.11+ chưa được chạy kiểm thử trên máy này.
 Phiên bản Starlette trong lockfile phát cảnh báo ngừng hỗ trợ HTTPX trong
@@ -176,10 +178,29 @@ Ruff kiểm tra quy ước, import, lỗi phổ biến và cú pháp tương th�
 ## Lộ trình phát triển
 
 1. **Task 1.1:** nền tảng ứng dụng, cấu hình, health và công cụ phát triển.
-2. Các nhiệm vụ sau: chốt mô hình dữ liệu/API và bổ sung lưu trữ.
+2. **Task 1.3–1.4:** models, schemas và SQLite đã có; API nghiệp vụ chưa có.
 3. Xử lý tài liệu, tìm kiếm và hỏi đáp RAG có nguồn tham chiếu.
 4. Trích xuất công việc, xem xét/xác nhận và quản lý công việc.
 5. Đánh giá AI, giao diện, Docker và hoàn thiện demo portfolio.
 
 Task 1.1 không triển khai các bước tiếp theo. Dữ liệu người dùng trong `data/`,
 database, chỉ mục vector, log và môi trường ảo được bỏ qua bởi `.gitignore`.
+
+## Khởi tạo database
+
+Từ thư mục gốc, sau khi cài dependencies:
+
+```shell
+uv run python -m app.db.init_db
+```
+
+Lệnh đọc `DATABASE_URL`, tạo thư mục cha khi cần và tạo các bảng còn thiếu.
+Chạy lại không xóa dữ liệu. Import module và khởi động health API không tự tạo
+database. Đường dẫn tương đối được tính từ thư mục chạy lệnh.
+
+`create_all()` không cập nhật cấu trúc bảng đã tồn tại. Theo phạm vi nhiệm vụ,
+chưa dùng Alembic; khi thay đổi schema đã có dữ liệu cần bổ sung migration.
+
+`get_db()` cấp session cho API tương lai và luôn đóng session; bên gọi chủ động
+`commit()`. Giao dịch chưa commit được rollback khi đóng. Tests dùng SQLite tạm,
+không sử dụng database development. Xem [thiết kế database](docs/architecture.md).
